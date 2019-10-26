@@ -179,7 +179,7 @@ def unpack_dicom_files(
             except AssertionError:
                 print(f'The histogram does not align for {_dicom_name} with '
                       f'min = {header_pixel_min} and max = {header_pixel_max}')
-                np.save(f'{_dicom_name}_pixel_array')
+                np.save(f'{_dicom_name}_pixel_array.numpy', pixel_array)
 
             header_list.extend(
                 [header_pixel_min, header_pixel_max,
