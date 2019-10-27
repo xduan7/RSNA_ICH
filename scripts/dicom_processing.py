@@ -11,8 +11,8 @@
             customized ones. Windowed images will be stored in minmax
             normalized floating point numbers, in their corresponding folder;
         (3) add the following field for not-windowed image:
-            * mean_pixel_value (after minmax normalization)
-            * std_pixel_value (after minmax normalization)
+            * ~~mean_pixel_value (after minmax normalization)~~
+            * ~~std_pixel_value (after minmax normalization)~~
             * num_white_pixels (== 1.0)
             * num_black_pixels (== 0.0)
             * pixel_hist[16]
@@ -183,7 +183,8 @@ def unpack_dicom_files(
             pixel_hist[-1] += num_max_pixels
 
             header_list.extend(
-                [header_pixel_min, header_pixel_max,
+                [pixel_array.shape,
+                 header_pixel_min, header_pixel_max,
                  num_min_pixels, num_max_pixels,
                  pixel_hist])
 
@@ -213,7 +214,8 @@ def unpack_dicom_files(
             # Storage specs
             'pixel_storage_len',
             'pixel_storage_signed',
-            # Image array statistics 
+            'pixel_array_shape',
+            # Image array statistics
             'pixel_min_value',
             'pixel_max_value',
             'num_min_pixels',
