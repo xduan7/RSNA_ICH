@@ -160,6 +160,7 @@ def unpack_dicom_files(
             # Note that the fields in header list is hard coded
             header_list = [_dicom_name, ] + get_dicom_header_list(_dicom_file)
 
+            # The shape of pixel array is not always (512, 512)
             pixel_array, header_pixel_min, header_pixel_max = \
                 get_dicom_pixel_array(_dicom_file)
 
@@ -173,13 +174,6 @@ def unpack_dicom_files(
 
             pixel_hist[0] += num_min_pixels
             pixel_hist[-1] += num_max_pixels
-
-            try:
-                assert pixel_hist.sum() == 512 * 512
-            except AssertionError:
-                print(f'The histogram does not align for {_dicom_name} with '
-                      f'min = {header_pixel_min} and max = {header_pixel_max}')
-                np.save(f'{_dicom_name}_pixel_array.numpy', pixel_array)
 
             header_list.extend(
                 [header_pixel_min, header_pixel_max,
