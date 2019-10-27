@@ -13,7 +13,7 @@ from glob import glob
 from tqdm import tqdm
 from addict import Dict
 from copy import deepcopy
-from dataframe_conversion import original_csv_to_dataframe
+from scripts.csv_processing import original_csv_to_dataframe
 
 ICH_DIR = os.path.join(os.environ['DATA_DIR'], 'RSNA/ICH_detection')
 SUB_CATEGORIES = ['epidural', 'intraparenchymal', 'intraventricular',

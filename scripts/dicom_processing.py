@@ -188,6 +188,7 @@ def unpack_dicom_files(
                  num_min_pixels, num_max_pixels,
                  pixel_hist])
 
+            # Append/add the header and pixel array to the list/dict
             header_list_list.append(header_list)
             pixel_array_dict[_dicom_name] = pixel_array
 
@@ -265,24 +266,29 @@ def process_dicom_files(debug: bool, verbose: bool):
         _pixel_array_dict_path = os.path.join(
             PROCESSED_DIR, _pixel_array_dict_name)
 
-        # Unpack all the dicom files
-        # Save the header and all "corrected" pixels into destination
-        header_df, pixel_array_dict = \
-            unpack_dicom_files(_dcm_paths, _header_df_path,
-                               _pixel_array_dict_path, verbose)
+        if os.path.exists(_header_df_path) and \
+                os.path.exists(_pixel_array_dict_path):
+            header_df = pd.read_pickle(_header_df_path)
+            with open(_pixel_array_dict_path, 'rb') as f:
+                pixel_array_dict = pickle.load(f)
 
-        if debug:
-            print('Head of the header dataframe: ')
-            print(header_df.head())
-
-            import random
-            sample_dicom_name, sample_dicom_pixel_array = \
-                random.choice(list(pixel_array_dict.items()))
-
-            sample_dicom_pixel_array_list = [sample_dicom_pixel_array, ]
+        else:
+            # Unpack all the dicom files
+            # Save the header and all "corrected" pixels into destination
+            header_df, pixel_array_dict = \
+                unpack_dicom_files(_dcm_paths, _header_df_path,
+                                   _pixel_array_dict_path, verbose)
 
         # Create windowed pixel arrays using default window config
         for _window_name, _window_config in DEFAULT_WINDOW_DICT.items():
+
+            _windowed_pixel_array_dict_name = \
+                prefix + f'_pixel_array_dict({_window_name}).pickle'
+            _windowed_pixel_array_dict_path = os.path.join(
+                PROCESSED_DIR, _windowed_pixel_array_dict_name)
+
+            if os.path.exists(_header_df_path):
+                continue
 
             if verbose:
                 print(f'Windowing pixel arrays by f{_window_name} ...')
@@ -295,33 +301,10 @@ def process_dicom_files(debug: bool, verbose: bool):
                                         _window_level,
                                         _window_range)
 
-            _windowed_pixel_array_dict_name = \
-                prefix + f'_pixel_array_dict({_window_name}).pickle'
-            _windowed_pixel_array_dict_path = os.path.join(
-                PROCESSED_DIR, _windowed_pixel_array_dict_name)
-
             # Save the windowed pixel arrays
             with open(_windowed_pixel_array_dict_path, 'wb') as f:
                 pickle.dump(_windowed_pixel_array_dict, f,
                             pickle.HIGHEST_PROTOCOL)
-
-            if debug:
-                sample_dicom_pixel_array_list.append(
-                    _windowed_pixel_array_dict[sample_dicom_name])
-
-        if debug:
-            import matplotlib.pyplot as plt
-            plt.figure()
-
-            for _i in range(5):
-
-                print(f'max: {np.max(sample_dicom_pixel_array_list[_i])}')
-                print(f'min: {np.min(sample_dicom_pixel_array_list[_i])}')
-
-                plt.subplot(2, 3, _i + 1)
-                plt.imshow(sample_dicom_pixel_array_list[_i], cmap='gray')
-
-            plt.show()
 
 
 if __name__ == '__main__':
