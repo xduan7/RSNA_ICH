@@ -20,19 +20,21 @@
 import os
 import glob
 import click
-import pickle
 import pydicom
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from copy import deepcopy
-from typing import List, Union, Optional, Any, Tuple, Dict
+from typing import List, Union, Optional, Any, Tuple
 
 numeric = Union[int, float]
 
 DATA_DIR = os.environ['DATA_DIR']
 RAW_DIR = os.path.join(DATA_DIR, 'RSNA/ICH_detection/raw')
 PROCESSED_DIR = os.path.join(DATA_DIR, 'RSNA/ICH_detection/processed')
+ORIGINAL_PIXEL_ARRAY_DIR = os.path.join(PROCESSED_DIR, 'original_pixel_array')
+
+PIXEL_DTYPE = np.int16
 
 NUM_HIST_BINS = 16
 
@@ -57,28 +59,66 @@ DEFAULT_WINDOW_DICT = {
 
 
 def window_pixel_array_dict(
-        pixel_array_dict: Dict[str, np.ndarray],
-        window_level: numeric,
-        window_range: numeric,
+        window_names: List[str],
+        window_levels: List[numeric],
+        window_ranges: List[numeric],
         verbose: bool = True,
-) -> Dict[str, np.ndarray]:
+) -> None:
 
-    pixel_min = window_level - (window_range / 2)
-    pixel_max = window_level + (window_range / 2)
+    assert len(window_names) == len(window_levels) == len(window_ranges)
 
-    windowed_pixel_array_dict = {}
+    # Check for necessity
+    pixel_array_paths = sorted(glob.glob(
+        os.path.join(ORIGINAL_PIXEL_ARRAY_DIR, '*')))
+    num_pixel_arrays = len(pixel_array_paths)
+    _window_names, _window_levels, _window_ranges = [], [], []
+    windowed_pixel_array_dirs = []
+    for _i in range(len(window_names)):
 
-    for _dicom_name, _pixel_array in \
-            tqdm(pixel_array_dict.items()) if verbose \
-            else pixel_array_dict.items():
+        _windowed_pixel_array_dir = os.path.join(
+            PROCESSED_DIR, f'{window_names[_i]}_pixel_array')
+        os.makedirs(_windowed_pixel_array_dir, exist_ok=True)
+        _num_windowed_pixel_arrays = len(glob.glob(os.path.join(
+            _windowed_pixel_array_dir, '*')))
 
-        _windowed_pixel_array = deepcopy(_pixel_array)
-        _windowed_pixel_array[_windowed_pixel_array < pixel_min] = pixel_min
-        _windowed_pixel_array[_windowed_pixel_array > pixel_max] = pixel_max
+        if num_pixel_arrays != _num_windowed_pixel_arrays:
+            _window_names.append(window_names[_i])
+            _window_levels.append(window_levels[_i])
+            _window_ranges.append(window_ranges[_i])
+            windowed_pixel_array_dirs.append(_windowed_pixel_array_dir)
 
-        windowed_pixel_array_dict[_dicom_name] = _windowed_pixel_array
+    window_names, window_levels, window_ranges = \
+        _window_names, _window_levels, _window_ranges
 
-    return windowed_pixel_array_dict
+    if verbose:
+        if len(window_names) != 0:
+            print(f'Perform {len(window_names)} windowing ({window_names}) '
+                  f'on {len(pixel_array_paths)} pixel arrays ...')
+        else:
+            print('No windows for pixel arrays ...')
+
+    window_levels = np.array(window_levels, dtype=PIXEL_DTYPE)
+    window_ranges = np.array(window_ranges, dtype=PIXEL_DTYPE)
+    pixel_mins = window_levels - (window_ranges / 2)
+    pixel_maxs = window_levels + (window_ranges / 2)
+
+    for _pixel_array_path in \
+            tqdm(pixel_array_paths) if verbose else pixel_array_paths:
+
+        _pixel_array = np.load(_pixel_array_path)
+        _pixel_array_name = os.path.basename(_pixel_array_path)
+
+        for _i in range(len(window_names)):
+
+            _windowed_pixel_array = deepcopy(_pixel_array)[:-4]
+            _windowed_pixel_array[_windowed_pixel_array < pixel_mins[_i]] = \
+                pixel_mins[_i]
+            _windowed_pixel_array[_windowed_pixel_array > pixel_maxs[_i]] = \
+                pixel_maxs[_i]
+
+            _windowed_pixel_array_path = os.path.join(
+                windowed_pixel_array_dirs[_i], f'{_pixel_array_name}')
+            np.save(_windowed_pixel_array_path,  arr=_windowed_pixel_array)
 
 
 def get_dicom_field(
@@ -94,7 +134,7 @@ def get_dicom_field(
         return dtype(_field)
 
 
-def get_dicom_header_list(
+def get_dicom_header(
         dicom_file: pydicom.dataset.FileDataset
 ) -> List[Union[str, int]]:
     return [
@@ -117,28 +157,26 @@ def get_dicom_pixel_array(
         dicom_file: pydicom.dataset.FileDataset
 ) -> Tuple[np.ndarray, numeric, numeric]:
 
-    pixel_dtype = np.int16
-
     # If the pixel array cannot be converted into int16 (out of range)
     if (np.max(dicom_file.pixel_array) > np.iinfo(np.int16).max) or \
             (np.min(dicom_file.pixel_array) < np.iinfo(np.int16).min):
-        print(f'Data overflown for dtype {pixel_dtype}!')
+        print(f'Data overflown for dtype {PIXEL_DTYPE}!')
 
-    raw_pixel_array = np.array(dicom_file.pixel_array, dtype=pixel_dtype)
+    raw_pixel_array = np.array(dicom_file.pixel_array, dtype=PIXEL_DTYPE)
 
-    _center = get_dicom_field(dicom_file, 'WindowCenter', pixel_dtype)
-    _width = get_dicom_field(dicom_file, 'WindowWidth', pixel_dtype)
-    _slope = get_dicom_field(dicom_file, 'RescaleSlope', pixel_dtype)
-    _intercept = get_dicom_field(dicom_file, 'RescaleIntercept', pixel_dtype)
+    _center = get_dicom_field(dicom_file, 'WindowCenter', PIXEL_DTYPE)
+    _width = get_dicom_field(dicom_file, 'WindowWidth', PIXEL_DTYPE)
+    _slope = get_dicom_field(dicom_file, 'RescaleSlope', PIXEL_DTYPE)
+    _intercept = get_dicom_field(dicom_file, 'RescaleIntercept', PIXEL_DTYPE)
 
     # Rescale but do not window the pixel array using the window
     # configuration in the header
     # The header windows are often extremely narrow
     raw_pixel_array = raw_pixel_array * _slope + _intercept
 
-    _half_width: pixel_dtype = _width // 2
-    header_pixel_min: pixel_dtype = _center - _half_width
-    header_pixel_max: pixel_dtype = _center + _half_width
+    _half_width: PIXEL_DTYPE = _width // 2
+    header_pixel_min: PIXEL_DTYPE = _center - _half_width
+    header_pixel_max: PIXEL_DTYPE = _center + _half_width
 
     return raw_pixel_array, header_pixel_min, header_pixel_max
 
@@ -146,14 +184,13 @@ def get_dicom_pixel_array(
 def unpack_dicom_files(
         dicom_paths: List[str],
         header_df_path: Optional[str] = None,
-        pixel_array_dict_path: Optional[str] = None,
         verbose: bool = True
-) -> Tuple[pd.DataFrame, dict]:
+) -> pd.DataFrame:
 
     os.makedirs(os.path.dirname(header_df_path), exist_ok=True)
-    os.makedirs(os.path.dirname(pixel_array_dict_path), exist_ok=True)
+    os.makedirs(ORIGINAL_PIXEL_ARRAY_DIR, exist_ok=True)
 
-    header_list_list, pixel_array_dict = [], {}
+    headers = []
 
     print(f'Extracting header information and image array from '
           f'{len(dicom_paths)} dicom files ... ') if verbose else None
@@ -165,7 +202,7 @@ def unpack_dicom_files(
             _dicom_file = pydicom.dcmread(_dicom_path)
 
             # Note that the fields in header list is hard coded
-            header_list = [_dicom_name, ] + get_dicom_header_list(_dicom_file)
+            header = [_dicom_name, ] + get_dicom_header(_dicom_file)
 
             # The shape of pixel array is not always (512, 512)
             pixel_array, header_pixel_min, header_pixel_max = \
@@ -182,15 +219,18 @@ def unpack_dicom_files(
             pixel_hist[0] += num_min_pixels
             pixel_hist[-1] += num_max_pixels
 
-            header_list.extend(
+            header.extend(
                 [pixel_array.shape,
                  header_pixel_min, header_pixel_max,
                  num_min_pixels, num_max_pixels,
                  pixel_hist])
 
-            # Append/add the header and pixel array to the list/dict
-            header_list_list.append(header_list)
-            pixel_array_dict[_dicom_name] = pixel_array
+            # Append the header and save the pixel array
+            headers.append(header)
+            # Note that all pixel arrays are saved in the same directory
+            # No matter if they are for training and test
+            np.save(os.path.join(ORIGINAL_PIXEL_ARRAY_DIR, _dicom_name),
+                    arr=pixel_array)
 
         except Exception as e:
             print(f'Cant handle {_dicom_path} for {str(e)}.') \
@@ -199,7 +239,7 @@ def unpack_dicom_files(
 
     # Convert the header list into dataframe
     header_df = pd.DataFrame(
-        header_list_list,
+        headers,
         columns=[
             # Dicom name that extracted from the file name by slicing
             'dicom_name',
@@ -230,17 +270,22 @@ def unpack_dicom_files(
     if header_df_path:
         header_df.to_pickle(header_df_path)
 
-    if pixel_array_dict_path:
-        with open(pixel_array_dict_path, 'wb') as f:
-            pickle.dump(pixel_array_dict, f, pickle.HIGHEST_PROTOCOL)
-
-    return header_df, pixel_array_dict
+    return header_df
 
 
 @click.command()
+@click.option('--window_name', '-n', type=str, default=None)
+@click.option('--window_level', '-l', type=int, default=None)
+@click.option('--window_range', '-r', type=int, default=None)
 @click.option('--debug', '-d', is_flag=True)
 @click.option('--verbose', '-v', is_flag=True)
-def process_dicom_files(debug: bool, verbose: bool):
+def process_dicom_files(
+        window_name: Optional[str],
+        window_level: Optional[int],
+        window_range: Optional[int],
+        debug: bool,
+        verbose: bool
+) -> None:
 
     # reading all dicom file paths
     trn_dcm_paths = sorted(glob.glob(
@@ -262,49 +307,25 @@ def process_dicom_files(debug: bool, verbose: bool):
         _header_df_name = prefix + '_dcm_header_df.pickle'
         _header_df_path = os.path.join(PROCESSED_DIR, _header_df_name)
 
-        _pixel_array_dict_name = prefix + '_pixel_array_dict.pickle'
-        _pixel_array_dict_path = os.path.join(
-            PROCESSED_DIR, _pixel_array_dict_name)
-
-        if os.path.exists(_header_df_path) and \
-                os.path.exists(_pixel_array_dict_path):
-            header_df = pd.read_pickle(_header_df_path)
-            with open(_pixel_array_dict_path, 'rb') as f:
-                pixel_array_dict = pickle.load(f)
-
-        else:
+        if not os.path.exists(_header_df_path):
             # Unpack all the dicom files
             # Save the header and all "corrected" pixels into destination
-            header_df, pixel_array_dict = \
-                unpack_dicom_files(_dcm_paths, _header_df_path,
-                                   _pixel_array_dict_path, verbose)
+            unpack_dicom_files(_dcm_paths, _header_df_path, verbose)
 
-        # Create windowed pixel arrays using default window config
-        for _window_name, _window_config in DEFAULT_WINDOW_DICT.items():
+    # Create windowed pixel arrays using default window config
+    if window_name and window_level and window_range:
+        window_names, window_levels, window_ranges = \
+            [window_name, ], [window_level, ], [window_range, ]
+    else:
+        window_names, window_levels, window_ranges = [], [], []
 
-            _windowed_pixel_array_dict_name = \
-                prefix + f'_pixel_array_dict({_window_name}).pickle'
-            _windowed_pixel_array_dict_path = os.path.join(
-                PROCESSED_DIR, _windowed_pixel_array_dict_name)
+    for _window_name, _window_config in DEFAULT_WINDOW_DICT.items():
+        window_names.append(_window_name)
+        window_levels.append(_window_config['window_level'])
+        window_ranges.append(_window_config['window_range'])
 
-            if os.path.exists(_header_df_path):
-                continue
-
-            if verbose:
-                print(f'Windowing pixel arrays by f{_window_name} ...')
-
-            _window_level = _window_config['window_level']
-            _window_range = _window_config['window_range']
-
-            _windowed_pixel_array_dict = \
-                window_pixel_array_dict(pixel_array_dict,
-                                        _window_level,
-                                        _window_range)
-
-            # Save the windowed pixel arrays
-            with open(_windowed_pixel_array_dict_path, 'wb') as f:
-                pickle.dump(_windowed_pixel_array_dict, f,
-                            pickle.HIGHEST_PROTOCOL)
+    window_pixel_array_dict(
+        window_names, window_levels, window_ranges, verbose)
 
 
 if __name__ == '__main__':
