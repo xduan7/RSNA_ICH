@@ -117,21 +117,28 @@ def get_dicom_pixel_array(
         dicom_file: pydicom.dataset.FileDataset
 ) -> Tuple[np.ndarray, numeric, numeric]:
 
-    raw_pixel_array = np.array(dicom_file.pixel_array, dtype=np.float32)
+    pixel_dtype = np.int16
 
-    _center = get_dicom_field(dicom_file, 'WindowCenter', np.float32)
-    _width = get_dicom_field(dicom_file, 'WindowWidth', np.float32)
-    _slope = get_dicom_field(dicom_file, 'RescaleSlope', np.float32)
-    _intercept = get_dicom_field(dicom_file, 'RescaleIntercept', np.float32)
+    # If the pixel array cannot be converted into int16 (out of range)
+    if (np.max(dicom_file.pixel_array) > np.iinfo(np.int16).max) or \
+            (np.min(dicom_file.pixel_array) < np.iinfo(np.int16).min):
+        print(f'Data overflown for dtype {pixel_dtype}!')
+
+    raw_pixel_array = np.array(dicom_file.pixel_array, dtype=pixel_dtype)
+
+    _center = get_dicom_field(dicom_file, 'WindowCenter', pixel_dtype)
+    _width = get_dicom_field(dicom_file, 'WindowWidth', pixel_dtype)
+    _slope = get_dicom_field(dicom_file, 'RescaleSlope', pixel_dtype)
+    _intercept = get_dicom_field(dicom_file, 'RescaleIntercept', pixel_dtype)
 
     # Rescale but do not window the pixel array using the window
     # configuration in the header
     # The header windows are often extremely narrow
     raw_pixel_array = raw_pixel_array * _slope + _intercept
 
-    _half_width = _width / 2
-    header_pixel_min = _center - _half_width
-    header_pixel_max = _center + _half_width
+    _half_width: pixel_dtype = _width // 2
+    header_pixel_min: pixel_dtype = _center - _half_width
+    header_pixel_max: pixel_dtype = _center + _half_width
 
     return raw_pixel_array, header_pixel_min, header_pixel_max
 
