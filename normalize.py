@@ -65,8 +65,6 @@ def normalize(
         channel_stds += _imgs.std(2).sum(0)
         num_samples += _num_samples
 
-        break
-
     channel_avgs /= num_samples
     channel_stds /= num_samples
 
