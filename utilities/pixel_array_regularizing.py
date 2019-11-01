@@ -10,14 +10,19 @@
 import cv2
 from .constants import *
 
+from typing import Optional
+
 
 RESIZE_INTERPOLATION = cv2.INTER_CUBIC
 
 
 def regularize_pixel_arrays(
         pixel_arrays: np.ndarray,
-        dimension: int,
+        dimension: Optional[int],
 ) -> np.ndarray:
+
+    # Note that openCV requires input array to be float32 for resizing, etc.
+    pixel_arrays = pixel_arrays.astype(dtype=np.float32)
 
     num_channel, height, width = pixel_arrays.shape
     assert num_channel == 3
@@ -43,13 +48,16 @@ def regularize_pixel_arrays(
         _padded_pixel_array = pixel_arrays
 
     # Resize into the desired dimension
-    regularized_pixel_arrays = []
-    for _channel_pixel_array in _padded_pixel_array:
+    if dimension:
+        regularized_pixel_arrays = []
+        for _channel_pixel_array in _padded_pixel_array:
 
-        _resized_pixel_array = cv2.resize(
-            _channel_pixel_array,
-            dsize=(dimension, dimension),
-            interpolation=cv2.INTER_CUBIC)
-        regularized_pixel_arrays.append(_resized_pixel_array)
+            _resized_pixel_array = cv2.resize(
+                _channel_pixel_array,
+                dsize=(dimension, dimension),
+                interpolation=cv2.INTER_CUBIC)
+            regularized_pixel_arrays.append(_resized_pixel_array)
 
-    return np.array(regularized_pixel_arrays, dtype=PIXEL_PROCESSING_DTYPE)
+        return np.array(regularized_pixel_arrays, dtype=PIXEL_PROCESSING_DTYPE)
+    else:
+        return np.array(_padded_pixel_array, dtype=PIXEL_PROCESSING_DTYPE)

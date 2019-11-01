@@ -1,5 +1,5 @@
 """ 
-    File Name:          RSNA_ICH/dicom_parsing.py
+    File Name:          RSNA_ICH/dicom_processing.py
     Author:             Xiaotian Duan (xduan7)
     Email:              xduan7@uchicago.edu
     Date:               10/28/19
@@ -7,6 +7,7 @@
     File Description:   
 
 """
+import glob
 import pydicom
 import pandas as pd
 from tqdm import tqdm
@@ -104,7 +105,7 @@ def get_dicom_pixel_array(
     return raw_pixel_array, header_pixel_min, header_pixel_max
 
 
-def unpack_dicom_files(
+def unpack_dicoms(
         dicom_paths: List[str],
         header_df_path: Optional[str] = None,
         verbose: bool = True
@@ -163,8 +164,7 @@ def unpack_dicom_files(
     # Convert the header list into dataframe
     header_df = pd.DataFrame(
         headers,
-        columns=(['dicom_name', ] + [_dih[1] for _dih in DCM_INFO_HEADERS])
-    )
+        columns=(['dicom_name', ] + [_dih[1] for _dih in DCM_INFO_HEADERS]))
     header_df.set_index('dicom_name', inplace=True)
 
     # Save all the processed data from dicom files
@@ -172,3 +172,64 @@ def unpack_dicom_files(
         header_df.to_pickle(header_df_path)
 
     return header_df
+
+
+def process_dicoms(
+        verbose: bool
+) -> None:
+    """
+    This function will go over all the dicom images and:
+    (1) fetch the dicom header from each dicom;
+    (2) perform the windowing, with default windowing options or
+        customized ones. Windowed images will be stored in minmax
+        normalized floating point numbers, in their corresponding folder;
+    (3) add the following field for not-windowed image:
+        * number of rows
+        * number of cols
+        * minimum value of pixels (after default windowing)
+        * maximum value of pixels (after default windowing)
+        * number of pixels with minimum value
+        * number of pixels with maximum value
+        * number of pixels in histogram (num_bins = NUM_HIST_BINS)
+
+    :param verbose:
+    :return:
+    """
+
+    if os.path.exists(TRN_HDR_DF_PATH) and os.path.exists(TST_HDR_DF_PATH):
+        if verbose:
+            print(f'Skipping dicom processing for '
+                  f'both {TRN_HDR_DF_PATH} and {TST_HDR_DF_PATH} exist ...')
+        return
+
+    # reading all dicom file paths
+    trn_dcm_paths = sorted(glob.glob(
+        os.path.join(RAW_DIR, 'stage_1_train_images/*.dcm')))
+    tst_dcm_paths = sorted(glob.glob(
+        os.path.join(RAW_DIR, 'stage_1_test_images/*.dcm')))
+    print(f'Number of Dicom Image Files for Training: {len(trn_dcm_paths)}')
+    print(f'Number of Dicom Image Files for Testing: {len(tst_dcm_paths)}')
+
+    for _trn_flag, _dcm_paths in \
+            zip([True, False], [trn_dcm_paths, tst_dcm_paths]):
+
+        # prefix = 'trn' if _trn_flag else 'tst'
+        # _header_df_name = prefix + '_dcm_header_df.pickle'
+        _header_df_name = TRN_HDR_DF_PATH if _trn_flag else TST_HDR_DF_PATH
+        _header_df_path = os.path.join(PROCESSED_DIR, _header_df_name)
+
+        if not os.path.exists(_header_df_path):
+            # Unpack all the dicom files
+            # Save the header and all "corrected" pixels into destination
+            unpack_dicoms(_dcm_paths, _header_df_path, verbose)
+
+    # # Old windowing code:
+    # Create windowed pixel arrays using default window config
+    # if window_name and window_level and window_range:
+    #     window_names, window_levels, window_ranges = \
+    #         [window_name, ], [window_level, ], [window_range, ]
+    # else:
+    #     window_names, window_levels, window_ranges = [], [], []
+    #
+    # window_pixel_arrays(
+    #     window_names, window_levels, window_ranges, verbose)

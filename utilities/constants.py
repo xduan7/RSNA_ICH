@@ -35,4 +35,4 @@ DIAGNOSIS = [
 Numeric = Union[int, float]
 
 PIXEL_STORAGE_DTYPE = np.int16
-PIXEL_PROCESSING_DTYPE = np.float16
+PIXEL_PROCESSING_DTYPE = np.float32

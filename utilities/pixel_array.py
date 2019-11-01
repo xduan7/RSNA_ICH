@@ -21,7 +21,7 @@ def get_pixel_array(
         else (file_name + '.npy')
 
     # Construct file path
-    pixel_array_dir = ORIGINAL_PIXEL_ARRAY_DIR
+    pixel_array_dir = PIXEL_ARRAY_DIR
     file_path = os.path.join(pixel_array_dir, file_name)
 
     return np.load(file_path) if os.path.exists(file_path) else None

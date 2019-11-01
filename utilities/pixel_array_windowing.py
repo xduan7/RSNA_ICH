@@ -10,7 +10,7 @@
 import glob
 from tqdm import tqdm
 from copy import deepcopy
-from typing import List, Optional, Iterable
+from typing import List, Optional, Iterable, Tuple
 
 from .constants import *
 
@@ -34,17 +34,25 @@ from .constants import *
 #
 # }
 
+WindowRanges = List[Tuple[int, int, bool]]  # last bit for inclusive
 DEFAULT_WINDOW_RANGES = [
-    [0, 80],  # Brain matter
-    [-20, 180],  # Blood/subdural
-    [-150, 230],  # Soft tissue
-    # [-800, 2000],  # Bone
+    (0, 80, True),  # Brain matter
+    (-20, 180, True),  # Blood/subdural
+    (-160, 240, True),  # Soft tissue
+    # [-800, 2000, True],  # Bone
+]
+
+NON_OVERLAPPING_WINDOW_RANGES = [
+    [-80, 0, True],  # Brain matter
+    [0, 160, True],  # Blood/subduralå
+    [160, 320, True],  # Soft tissue
+    # [-800, 2000, True],  # Bone
 ]
 
 
 def window_pixel_array(
         pixel_array: np.ndarray,
-        window_ranges: List[List[int, int]],
+        window_ranges: WindowRanges,
         scaling: bool = True,
 ) -> np.ndarray:
     windowed_pixel_arrays = []
@@ -53,15 +61,17 @@ def window_pixel_array(
 
         _pixel_min = _window_ranges[0]
         _pixel_max = _window_ranges[1]
+        _inclusive = _window_ranges[2]
 
         _windowed_pixel_array = \
             np.array(pixel_array, dtype=PIXEL_PROCESSING_DTYPE)
         _windowed_pixel_array[_windowed_pixel_array < _pixel_min] = _pixel_min
-        _windowed_pixel_array[_windowed_pixel_array > _pixel_max] = _pixel_max
+        _windowed_pixel_array[_windowed_pixel_array > _pixel_max] = \
+            _pixel_max if _inclusive else _pixel_min
 
         if scaling:
             _windowed_pixel_array = np.interp(
-                _windowed_pixel_array, _window_ranges, (0., 1.))
+                _windowed_pixel_array, (_pixel_min, _pixel_max), (0., 1.))
 
         windowed_pixel_arrays.append(_windowed_pixel_array)
 

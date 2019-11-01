@@ -8,7 +8,6 @@
 
 """
 import pandas as pd
-from typing import Optional
 
 from .constants import *
 
@@ -34,8 +33,7 @@ def load_trn_lbl_df(
         _tmp_df.index.names = ['ID']
         _tmp_df.index = 'ID_' + _tmp_df.index
 
-        if trn_lbl_df_path:
-            _tmp_df.to_pickle(trn_lbl_df_path)
+        _tmp_df.to_pickle(trn_lbl_df_path)
         return _tmp_df
 
 
