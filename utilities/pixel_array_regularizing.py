@@ -43,7 +43,8 @@ def regularize_pixel_arrays(
             np.pad(pixel_arrays,
                    ((0, 0),
                     (_height_upper_padding, _height_lower_padding),
-                    (_width_upper_padding, _width_lower_padding)))
+                    (_width_upper_padding, _width_lower_padding)),
+                   mode='minimum')
     else:
         _padded_pixel_array = pixel_arrays
 

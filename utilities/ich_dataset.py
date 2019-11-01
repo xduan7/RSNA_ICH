@@ -83,6 +83,7 @@ def get_n_fold_trn_vld_ids(
         stratified_labels = \
             stratified_labels * len(_le.classes_) + _stratified_label
 
+    # Do not shuffle for a fixed state
     splitter = StratifiedKFold(n_splits=NUM_CV_FOLDS)
     n_fold_trn_vld_ids = \
         [[valid_trn_ids[_trn_ids].to_list(),
@@ -101,12 +102,12 @@ class ICHDataset(Dataset):
             dataframe: pd.DataFrame,
             window_ranges: WindowRanges = DEFAULT_WINDOW_RANGES,
 
-            regularize_dim: Optional[int] = None,
-
             equalization: bool = True,
             equalize_num_bins: int = EQUALIZE_NUM_BINS,
             equalize_mask_usage: bool = EQUALIZE_USE_MASK,
             equalize_adaption: bool = EQUALIZE_ADAPTION,
+
+            regularize_dim: Optional[int] = None,
 
             transform: Optional[albumentations.Compose] = None,
             low_memory: bool = True,
@@ -162,30 +163,29 @@ class ICHDataset(Dataset):
                 window_pixel_array(_original_pixel_array,
                                    window_ranges=_window_ranges,
                                    scaling=True)
-            _cropped_pixel_arrays = \
+            _masks, _cropped_pixel_arrays = \
                 crop_pixel_arrays(_windowed_pixel_arrays,
                                   is_scaled=True)
-            _regularized_pixel_array = \
-                regularize_pixel_arrays(_cropped_pixel_arrays,
-                                        dimension=self.__regularize_dim)
 
+            _equalize_num_bins = equalize_num_bins if demonstration \
+                else self.__equalize_num_bins
+            _equalize_mask_usage = equalize_mask_usage if demonstration \
+                else self.__equalize_mask_usage
+            _equalize_adaption = equalize_adaption if demonstration \
+                else self.__equalize_adaption
             if self.__equalization:
-                _equalize_num_bins = equalize_num_bins if demonstration \
-                    else self.__equalize_num_bins
-                _equalize_mask_usage = equalize_mask_usage if demonstration \
-                    else self.__equalize_mask_usage
-                _equalize_adaption = equalize_adaption if demonstration \
-                    else self.__equalize_adaption
-
                 _equalized_pixel_array = \
-                    equalize_pixel_arrays(_regularized_pixel_array,
+                    equalize_pixel_arrays(_cropped_pixel_arrays,
+                                          masks=_masks if
+                                          _equalize_mask_usage else None,
                                           num_bins=_equalize_num_bins,
-                                          mask_usage=_equalize_mask_usage,
                                           adaption=_equalize_adaption)
-
-                _pixel_array = _equalized_pixel_array
             else:
-                _pixel_array = _regularized_pixel_array
+                _equalized_pixel_array = _cropped_pixel_arrays
+
+            _regularized_pixel_array = \
+                regularize_pixel_arrays(_equalized_pixel_array,
+                                        dimension=self.__regularize_dim)
 
             if demonstration:
 
@@ -218,30 +218,31 @@ class ICHDataset(Dataset):
                     plt.title(
                         f'cropped {str(_cropped_pixel_arrays[_i].shape)}')
 
-                plt.subplot(5, 4, 13)
-                plt.imshow(np.transpose(_regularized_pixel_array, (1, 2, 0)))
-                plt.title(f'padded and resized (RGB)')
-                for _i in range(len(_regularized_pixel_array)):
-                    plt.subplot(5, 4, 14 + _i)
-                    plt.imshow(_regularized_pixel_array[_i],
-                               cmap=plt.get_cmap('gray'))
-                    plt.title(f'padded and resized '
-                              f'{str(_regularized_pixel_array[_i].shape)}')
-
                 if self.__equalization:
-                    plt.subplot(5, 4, 17)
+                    plt.subplot(5, 4, 13)
                     plt.imshow(np.transpose(_equalized_pixel_array, (1, 2, 0)))
                     plt.title(f'equalized (RGB)')
                     for _i in range(len(_equalized_pixel_array)):
-                        plt.subplot(5, 4, 18 + _i)
+                        plt.subplot(5, 4, 14 + _i)
                         plt.imshow(_equalized_pixel_array[_i],
                                    cmap=plt.get_cmap('gray'))
                         plt.title(f'equalized '
                                   f'mask={_equalize_mask_usage}, '
                                   f'adap={_equalize_adaption}')
 
+                plt.subplot(5, 4, 17)
+                plt.imshow(np.transpose(_regularized_pixel_array, (1, 2, 0)))
+                plt.title(f'padded and resized (RGB)')
+                for _i in range(len(_regularized_pixel_array)):
+                    plt.subplot(5, 4, 18 + _i)
+                    plt.imshow(_regularized_pixel_array[_i],
+                               cmap=plt.get_cmap('gray'))
+                    plt.title(f'padded and resized '
+                              f'{str(_regularized_pixel_array[_i].shape)}')
+
                 plt.show()
 
+            _pixel_array = _regularized_pixel_array
             if not self.__low_memory:
                 self.__pixel_array_dict[_id] = _pixel_array
 

@@ -21,8 +21,7 @@ BLURRING_MASK_THRESHOLD = 0.1
 def mask_pixel_array(
         pixel_array: np.ndarray,
         is_scaled: bool,
-        return_mask: bool = False,
-) -> Union[Tuple[int, int, int, int], np.ndarray]:
+) -> Union[Tuple[np.ndarray, int, int, int, int], np.ndarray]:
 
     # Note that openCV requires input array to be float32 for blurring, etc.
     pixel_array = pixel_array.astype(dtype=np.float32)
@@ -36,42 +35,44 @@ def mask_pixel_array(
             (np.min(pixel_array), np.max(pixel_array)))
 
     _blurred_pixel_array = cv2.blur(pixel_array, BLURRING_KERNEL_SIZE)
-    _mask = (_blurred_pixel_array > _scaled_mask_threshold)
+    mask = (_blurred_pixel_array > _scaled_mask_threshold)
 
-    if return_mask:
-        return _mask
-    else:
-        _num_rows, _num_cols = pixel_array.shape
-        _row_mask, _col_mask = _mask.any(1), _mask.any(0)
-        # _mask = np.outer(_row_mask, _col_mask)
+    _num_rows, _num_cols = pixel_array.shape
+    _row_mask, _col_mask = mask.any(1), mask.any(0)
+    # square_mask = np.outer(_row_mask, _col_mask)
 
-        row_start = _row_mask.argmax()
-        row_end = _num_rows - _row_mask[::-1].argmax()
-        col_start = _col_mask.argmax()
-        col_end = _num_cols - _col_mask[::-1].argmax()
+    row_start = _row_mask.argmax()
+    row_end = _num_rows - _row_mask[::-1].argmax()
+    col_start = _col_mask.argmax()
+    col_end = _num_cols - _col_mask[::-1].argmax()
 
-        return row_start, row_end, col_start, col_end
+    return mask, row_start, row_end, col_start, col_end
 
 
 def mask_pixel_arrays(
         pixel_arrays: np.ndarray,
         is_scaled: bool,
-        return_mask: bool = False,
-) -> Tuple[int, int, int, int]:
+) -> Tuple[np.ndarray, int, int, int, int]:
 
-    _mask = np.array(
-        [list(mask_pixel_array(_pixel_array, is_scaled))
-         for _pixel_array in pixel_arrays])
+    masks = []
+    ranges = []
 
-    if return_mask:
-        return _mask
-    else:
-        row_start = np.min(_mask[:, 0])
-        row_end = np.max(_mask[:, 1])
-        col_start = np.min(_mask[:, 2])
-        col_end = np.max(_mask[:, 3])
+    for _pixel_array in pixel_arrays:
+        _mask, _row_start, _row_end, _col_start, _col_end = \
+            mask_pixel_array(_pixel_array, is_scaled)
 
-        return row_start, row_end, col_start, col_end
+        masks.append(_mask)
+        ranges.append([_row_start, _row_end, _col_start, _col_end])
+
+    masks = np.array(masks, dtype=bool)
+    ranges = np.array(ranges)
+
+    row_start = np.min(ranges[:, 0])
+    row_end = np.max(ranges[:, 1])
+    col_start = np.min(ranges[:, 2])
+    col_end = np.max(ranges[:, 3])
+
+    return masks, row_start, row_end, col_start, col_end
 
 
 def crop_pixel_array(
@@ -81,12 +82,14 @@ def crop_pixel_array(
         row_end: Optional[int] = None,
         col_start: Optional[int] = None,
         col_end: Optional[int] = None,
-) -> np.ndarray:
+) -> Tuple[Optional[np.ndarray], np.ndarray]:
 
     if (not row_start) or (not row_end) or (not col_start) or (not col_end):
-        row_start, row_end, col_start, col_end = \
+        mask, row_start, row_end, col_start, col_end = \
             mask_pixel_array(pixel_array, is_scaled)
-    return deepcopy(pixel_array[row_start: row_end, col_start: col_end])
+    else:
+        mask = None
+    return mask, pixel_array[row_start: row_end, col_start: col_end]
 
 
 def crop_pixel_arrays(
@@ -96,12 +99,20 @@ def crop_pixel_arrays(
         row_end: Optional[int] = None,
         col_start: Optional[int] = None,
         col_end: Optional[int] = None,
-) -> np.ndarray:
+) -> Tuple[Optional[np.ndarray], np.ndarray]:
 
     if (not row_start) or (not row_end) or (not col_start) or (not col_end):
-        row_start, row_end, col_start, col_end = \
+        _masks, row_start, row_end, col_start, col_end = \
             mask_pixel_arrays(pixel_arrays, is_scaled)
+        masks = _masks[:, row_start: row_end, col_start: col_end]
 
-    return np.array(
-        [deepcopy(_pixel_array[row_start: row_end, col_start: col_end])
-         for _pixel_array in pixel_arrays], dtype=PIXEL_PROCESSING_DTYPE)
+    else:
+        masks = None
+
+    # cropped_pixel_arrays = np.array(
+    #     [_pixel_array[row_start: row_end, col_start: col_end]
+    #      for _pixel_array in pixel_arrays], dtype=PIXEL_PROCESSING_DTYPE)
+    cropped_pixel_arrays = \
+        pixel_arrays[:, row_start: row_end, col_start: col_end]
+
+    return masks, cropped_pixel_arrays

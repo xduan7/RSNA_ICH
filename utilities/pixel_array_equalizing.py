@@ -7,6 +7,7 @@
     File Description:   
 
 """
+from typing import Optional
 from skimage.exposure import equalize_hist, equalize_adapthist
 
 from .constants import *
@@ -20,29 +21,21 @@ EQUALIZE_ADAPTION = False
 
 def equalize_pixel_arrays(
         pixel_arrays: np.ndarray,
+        masks: Optional[np.ndarray] = None,
         num_bins: int = EQUALIZE_NUM_BINS,
-        mask_usage: bool = EQUALIZE_USE_MASK,
         adaption: bool = EQUALIZE_ADAPTION,
         adaptive_clip_limit: float = 0.01
 
 ):
     adjusted_pixel_array = []
-    for _pixel_array in pixel_arrays:
-
-        _mask = mask_pixel_array(_pixel_array,
-                                 is_scaled=True,
-                                 return_mask=True) \
-            if mask_usage else None
-
-        eq_hist_kwargs = {
-            'image': _pixel_array,
-            'nbins': num_bins
-        }
+    for _i, _pixel_array in enumerate(pixel_arrays):
 
         adjusted_pixel_array.append(
-            equalize_adapthist(**eq_hist_kwargs,
+            equalize_adapthist(_pixel_array,
+                               nbins=num_bins,
                                clip_limit=adaptive_clip_limit)
-            if adaption else equalize_hist(**eq_hist_kwargs,
-                                           mask=_mask))
+            if adaption else equalize_hist(_pixel_array,
+                                           nbins=num_bins,
+                                           mask=masks[_i]))
 
     return np.array(adjusted_pixel_array, dtype=PIXEL_PROCESSING_DTYPE)

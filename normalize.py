@@ -7,6 +7,8 @@
     File Description:   
 
 """
+import multiprocessing
+
 import click
 from torch.utils.data import DataLoader
 
@@ -34,14 +36,16 @@ def normalize(
                           regularize_dim=512,
                           low_memory=True)
 
+    num_workers = multiprocessing.cpu_count() if num_workers < 0 \
+        else max(num_workers, num_workers)
     trn_dldr = DataLoader(trn_dset,
-                          batch_size=32,
+                          batch_size=batch_size,
                           shuffle=False,
-                          num_workers=4,
+                          num_workers=num_workers,
                           pin_memory=False,
                           timeout=0)
 
-    # # Visualization
+    # Visualization
     # for _i in range(9):
     #     trn_dset.getitem(
     #         index=_i,
@@ -52,6 +56,13 @@ def normalize(
     #         window_ranges=[(-20, 180, False),
     #                        (-160, 240, False),
     #                        (160, 600, True)])
+    trn_dset.getitem(
+        index=0,
+        demonstration=True,
+        equalize_num_bins=EQUALIZE_NUM_BINS,
+        equalize_mask_usage=EQUALIZE_USE_MASK,
+        equalize_adaption=EQUALIZE_ADAPTION,
+        window_ranges=DEFAULT_WINDOW_RANGES)
 
     channel_avgs = torch.zeros([3, ])
     channel_stds = torch.zeros([3, ])
