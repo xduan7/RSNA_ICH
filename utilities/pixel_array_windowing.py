@@ -43,10 +43,9 @@ WindowRanges = List[Tuple[int, int, bool]]  # last bit for inclusive
 # ]
 
 DEFAULT_WINDOW_RANGES = [
-    [0, 100, False],  # Brain matter
-    [-100, 300, False],  # Blood/subduralå
-    [200, 800, True],  # Soft tissue
-    # [-800, 2000, True],  # Bone
+    [0, 100, False],
+    [-100, 300, False],
+    [200, 800, True],
 ]
 
 

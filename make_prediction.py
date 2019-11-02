@@ -14,7 +14,7 @@ from albumentations.pytorch import ToTensor
 
 from utilities.ich_dataset import *
 
-NUM_CARDINALITY = 3
+NUM_CARDINALITY = 8
 NUM_EPOCHS = 10
 IMG_DIM = 256
 DEVICE = 'cuda'
@@ -31,12 +31,16 @@ valid_trn_df = trn_df[~trn_outlier_mask]
 trn_dset_kwargs = {
     'training': True,
     'dataframe': valid_trn_df,
+    'window_ranges': DEFAULT_WINDOW_RANGES,
+    'equalization': False,
     'regularize_dim': 512,
     'low_memory': True,
 }
 tst_dset_kwargs = {
     'training': False,
     'dataframe': tst_hdr_df,
+    'window_ranges': DEFAULT_WINDOW_RANGES,
+    'equalization': False,
     'regularize_dim': 512,
     'low_memory': True,
 }
