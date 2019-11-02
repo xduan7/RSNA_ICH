@@ -179,3 +179,6 @@ def make_prediction(
                 masked_pred_df,
                 f'./masked_e{equalization}n{normalization}_{epoch + 1}.csv')
 
+
+if __name__ == '__main__':
+    make_prediction()
