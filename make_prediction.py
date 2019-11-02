@@ -45,15 +45,15 @@ tst_dset_kwargs = {
     'low_memory': True,
 }
 
-channel_avgs, channel_stds, nan_sample_ids = \
-    normalize_dset(trn_dset_kwargs, num_workers=-1, batch_size=128)
-
-valid_trn_df = valid_trn_df.drop(nan_sample_ids)
+# channel_avgs, channel_stds, nan_sample_ids = \
+#     normalize_dset(trn_dset_kwargs, num_workers=-1, batch_size=128)
+#
+# valid_trn_df = valid_trn_df.drop(nan_sample_ids)
 valid_trn_df = valid_trn_df[: (len(valid_trn_df) // 10)]
 
 trn_transform = Compose([
     Resize(IMG_DIM, IMG_DIM),
-    Normalize(mean=channel_avgs, std=channel_stds),
+    # Normalize(mean=channel_avgs, std=channel_stds),
     HorizontalFlip(),
     RandomBrightnessContrast(),
     ShiftScaleRotate(),
@@ -61,7 +61,7 @@ trn_transform = Compose([
 ])
 tst_transform = Compose([
     Resize(IMG_DIM, IMG_DIM),
-    Normalize(mean=channel_avgs, std=channel_stds),
+    # Normalize(mean=channel_avgs, std=channel_stds),
     ToTensor()
 ])
 
