@@ -81,7 +81,7 @@ tst_dldr = DataLoader(tst_dset, **dldr_kwargs)
 model = torch.hub.load('facebookresearch/WSL-Images',
                        f'resnext101_32x{NUM_CARDINALITY}d_wsl',).to(DEVICE)
 
-model.fc = torch.nn.Linear(2048, len(DIAGNOSIS))
+model.fc = torch.nn.Linear(2048, len(DIAGNOSIS)).to(DEVICE)
 
 criterion = torch.nn.BCEWithLogitsLoss()
 
