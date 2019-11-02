@@ -164,6 +164,7 @@ class ICHDataset(Dataset):
                 window_pixel_array(_original_pixel_array,
                                    window_ranges=_window_ranges,
                                    scaling=True)
+
             _masks, _cropped_pixel_arrays = \
                 crop_pixel_arrays(_windowed_pixel_arrays,
                                   is_scaled=True)
@@ -247,11 +248,11 @@ class ICHDataset(Dataset):
             if not self.__low_memory:
                 self.__pixel_array_dict[_id] = _pixel_array
 
-        _image = _pixel_array
+        _image = np.moveaxis(_pixel_array, 0, -1)
 
         # Image augmentation and transformation
         if self.__transform:
-            _image = self.__transform(image=_pixel_array)['image']
+            _image = self.__transform(image=_image)['image']
 
         # Get the label if the dataset is marked for training
         if self.__training:

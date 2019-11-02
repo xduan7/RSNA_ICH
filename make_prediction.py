@@ -16,7 +16,7 @@ from utilities.ich_dataset import *
 
 NUM_CARDINALITY = 8
 NUM_EPOCHS = 10
-IMG_DIM = 256
+# IMG_DIM = 256
 DEVICE = 'cuda'
 
 trn_lbl_df = load_trn_lbl_df()
@@ -52,7 +52,7 @@ tst_dset_kwargs = {
 valid_trn_df = valid_trn_df[: (len(valid_trn_df) // 10)]
 
 trn_transform = Compose([
-    Resize(IMG_DIM, IMG_DIM),
+    # Resize(IMG_DIM, IMG_DIM),
     # Normalize(mean=channel_avgs, std=channel_stds),
     HorizontalFlip(),
     RandomBrightnessContrast(),
@@ -60,7 +60,7 @@ trn_transform = Compose([
     ToTensor()
 ])
 tst_transform = Compose([
-    Resize(IMG_DIM, IMG_DIM),
+    # Resize(IMG_DIM, IMG_DIM),
     # Normalize(mean=channel_avgs, std=channel_stds),
     ToTensor()
 ])
