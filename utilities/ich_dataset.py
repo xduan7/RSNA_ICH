@@ -248,11 +248,12 @@ class ICHDataset(Dataset):
             if not self.__low_memory:
                 self.__pixel_array_dict[_id] = _pixel_array
 
-        _image = np.moveaxis(_pixel_array, 0, -1)
-
         # Image augmentation and transformation
         if self.__transform:
+            _image = np.moveaxis(_pixel_array, 0, -1)
             _image = self.__transform(image=_image)['image']
+        else:
+            _image = _pixel_array
 
         # Get the label if the dataset is marked for training
         if self.__training:
