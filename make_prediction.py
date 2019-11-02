@@ -9,7 +9,7 @@
 """
 from apex import amp
 from albumentations import Compose, ShiftScaleRotate, Resize, \
-    HorizontalFlip, RandomBrightnessContrast
+    HorizontalFlip, RandomBrightnessContrast, Normalize
 from albumentations.pytorch import ToTensor
 
 from utilities.ich_dataset import *
@@ -49,6 +49,7 @@ valid_trn_df = valid_trn_df[: (len(valid_trn_df) // 10)]
 
 trn_transform = Compose([
     Resize(IMG_DIM, IMG_DIM),
+    Normalize(mean=channel_avgs, std=channel_stds),
     HorizontalFlip(),
     RandomBrightnessContrast(),
     ShiftScaleRotate(),
@@ -56,6 +57,7 @@ trn_transform = Compose([
 ])
 tst_transform = Compose([
     Resize(IMG_DIM, IMG_DIM),
+    Normalize(mean=channel_avgs, std=channel_stds),
     ToTensor()
 ])
 
@@ -70,12 +72,10 @@ dldr_kwargs = {
 }
 
 trn_dldr = DataLoader(trn_dset, **dldr_kwargs)
-trn_dldr = DataLoader(trn_dset, **dldr_kwargs)
+tst_dldr = DataLoader(tst_dset, **dldr_kwargs)
 
-
-model = torch.hub.load(
-    'facebookresearch/WSL-Images',
-    f'resnext101_32x{NUM_CARDINALITY}d_wsl',).to(DEVICE)
+model = torch.hub.load('facebookresearch/WSL-Images',
+                       f'resnext101_32x{NUM_CARDINALITY}d_wsl',).to(DEVICE)
 
 model.fc = torch.nn.Linear(2048, len(DIAGNOSIS))
 

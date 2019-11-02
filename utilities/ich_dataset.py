@@ -307,7 +307,7 @@ def normalize_dset(
 
         _nan_masks = torch.isnan(_imgs).any(-1).any(-1)
         if _nan_masks.any():
-            _nan_ids = _batch['id'][_nan_masks].tolist()
+            _nan_ids = np.array(_batch['id'])[_nan_masks].tolist()
             nan_sample_ids.extend(_nan_ids)
             print(f'Found IDs with NaN values: {_nan_ids}')
 
