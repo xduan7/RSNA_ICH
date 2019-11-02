@@ -36,7 +36,7 @@ def normalize(
                           regularize_dim=512,
                           low_memory=True)
 
-    num_workers = multiprocessing.cpu_count() if num_workers < 0 \
+    num_workers = multiprocessing.cpu_count() if num_workers == 0 \
         else max(num_workers, num_workers)
     trn_dldr = DataLoader(trn_dset,
                           batch_size=batch_size,
@@ -56,13 +56,14 @@ def normalize(
     #         window_ranges=[(-20, 180, False),
     #                        (-160, 240, False),
     #                        (160, 600, True)])
-    trn_dset.getitem(
-        index=0,
-        demonstration=True,
-        equalize_num_bins=EQUALIZE_NUM_BINS,
-        equalize_mask_usage=EQUALIZE_USE_MASK,
-        equalize_adaption=EQUALIZE_ADAPTION,
-        window_ranges=DEFAULT_WINDOW_RANGES)
+
+    # trn_dset.getitem(
+    #     index=0,
+    #     demonstration=True,
+    #     equalize_num_bins=EQUALIZE_NUM_BINS,
+    #     equalize_mask_usage=EQUALIZE_USE_MASK,
+    #     equalize_adaption=EQUALIZE_ADAPTION,
+    #     window_ranges=DEFAULT_WINDOW_RANGES)
 
     channel_avgs = torch.zeros([3, ])
     channel_stds = torch.zeros([3, ])
@@ -75,6 +76,9 @@ def normalize(
         channel_avgs += _imgs.mean(2).sum(0)
         channel_stds += _imgs.std(2).sum(0)
         num_samples += _num_samples
+
+        print(channel_avgs)
+        print(channel_stds)
 
     channel_avgs /= num_samples
     channel_stds /= num_samples
