@@ -259,9 +259,9 @@ class ICHDataset(Dataset):
             else:
                 _labels = torch.tensor(self.__df.loc[_id, DIAGNOSIS])
                 self.__lbl_dict[index] = _labels
-            return {'image': _image, 'labels': _labels}
+            return {'image': _image, 'labels': _labels, 'id': _id}
         else:
-            return {'image': _image}
+            return {'image': _image, 'id': _id}
 
     def __getitem__(
             self,

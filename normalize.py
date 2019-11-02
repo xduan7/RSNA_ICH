@@ -73,12 +73,16 @@ def normalize(
         _imgs = _batch['image']
         _num_samples = _imgs.size(0)
         _imgs = _imgs.view(_num_samples, _imgs.size(1), -1)
-        channel_avgs += _imgs.mean(2).sum(0)
-        channel_stds += _imgs.std(2).sum(0)
-        num_samples += _num_samples
 
-        print(channel_avgs)
-        print(channel_stds)
+        _avg = _imgs.mean(2).sum(0)
+        _std = _imgs.std(2).sum(0)
+
+        if torch.isnan(_avg).any() or torch.isnan(_std).any():
+            print(_batch['id'])
+        else:
+            channel_avgs += _imgs.mean(2).sum(0)
+            channel_stds += _imgs.std(2).sum(0)
+            num_samples += _num_samples
 
     channel_avgs /= num_samples
     channel_stds /= num_samples
