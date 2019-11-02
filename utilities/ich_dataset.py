@@ -11,7 +11,7 @@ import torch
 import pandas as pd
 import albumentations
 from sklearn.preprocessing import LabelEncoder
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import StratifiedKFold
 
 from .pixel_array_equalizing import *
@@ -22,8 +22,7 @@ from .constants import *
 from .csv_processing import load_trn_lbl_df
 from .pixel_array import get_pixel_array
 
-
-MIN_PIXELS_THOLD = 0.9
+MIN_PIXELS_THOLD = 0.84
 NUM_CV_FOLDS = 5
 STRATIFIED_COLS = DIAGNOSIS
 
@@ -35,9 +34,11 @@ def get_outlier(
 ):
     # Outlier masks: marked true if the sample identified as outlier
     trn_outlier_mask = trn_df['num_min_pixels'] > \
-        (min_pixels_thold * trn_df['num_rows'] * trn_df['num_cols'])
+                       (min_pixels_thold * trn_df['num_rows'] * trn_df[
+                           'num_cols'])
     tst_outlier_mask = tst_hdr_df['num_min_pixels'] > \
-        (min_pixels_thold * tst_hdr_df['num_rows'] * tst_hdr_df['num_cols'])
+                       (min_pixels_thold * tst_hdr_df['num_rows'] * tst_hdr_df[
+                           'num_cols'])
 
     # Print out the number of training samples, outliers and the number of
     # patients in the outliers
@@ -45,10 +46,10 @@ def get_outlier(
     _num_trn_outliers = trn_outlier_mask.sum()
     _num_patients_as_outliers = trn_df[trn_outlier_mask]['any'].sum()
 
-    print(f'{_num_trn_outliers/_num_trn * 100.:.2f}% '
+    print(f'{_num_trn_outliers / _num_trn * 100.:.2f}% '
           f'({_num_trn_outliers}/{_num_trn}) '
           f'training samples identified as outliers, '
-          f'{_num_patients_as_outliers/_num_trn_outliers * 100.:.2f}% '
+          f'{_num_patients_as_outliers / _num_trn_outliers * 100.:.2f}% '
           f'({_num_patients_as_outliers}) '
           f'of which are labeled as patients.')
 
@@ -56,6 +57,7 @@ def get_outlier(
 
 
 def get_n_fold_trn_vld_ids(
+
         stratified_cols: List[str] = STRATIFIED_COLS,
         min_pixels_thold: float = MIN_PIXELS_THOLD,
 ):
@@ -73,9 +75,8 @@ def get_n_fold_trn_vld_ids(
     valid_trn_df = trn_df[~trn_outlier_mask]
     valid_trn_ids = valid_trn_df.index
 
-    stratified_labels = np.zeros(shape=(len(valid_trn_df), ), dtype=int)
+    stratified_labels = np.zeros(shape=(len(valid_trn_df),), dtype=int)
     for _i, _col in enumerate(stratified_cols):
-
         _le = LabelEncoder()
         _col_values = valid_trn_df[_col].values
         _stratified_label = _le.fit_transform(_col_values)
@@ -268,3 +269,57 @@ class ICHDataset(Dataset):
             index: int,
     ):
         return self.getitem(index, demonstration=False)
+
+
+def normalize_dset(
+        trn_dset_kwargs: dict,
+        num_workers: int = -1,
+        batch_size: int = 128,
+) -> Tuple[torch.Tensor, torch.Tensor, List[str]]:
+
+    _trn_dset_kwargs = deepcopy(trn_dset_kwargs)
+    _trn_dset_kwargs['training'] = False
+    _trn_dset_kwargs['transform'] = None
+    _trn_dset_kwargs['low_memory'] = True
+
+    _trn_dset = ICHDataset(**_trn_dset_kwargs)
+
+    import multiprocessing
+    num_workers = multiprocessing.cpu_count() if num_workers <= 0 \
+        else max(num_workers, multiprocessing.cpu_count())
+
+    _trn_dldr = DataLoader(_trn_dset,
+                           batch_size=batch_size,
+                           shuffle=False,
+                           num_workers=num_workers,
+                           pin_memory=False,
+                           timeout=1000)
+
+    channel_avgs = torch.zeros([3, ])
+    channel_stds = torch.zeros([3, ])
+    num_samples = 0
+    nan_sample_ids = []
+    for _batch in tqdm(_trn_dldr):
+
+        _imgs = _batch['image']
+        _num_samples = _imgs.size(0)
+        _imgs = _imgs.view(_num_samples, _imgs.size(1), -1)
+
+        _nan_masks = torch.isnan(_imgs).any(-1).any(-1)
+        if _nan_masks.any():
+            _nan_ids = _batch['id'][_nan_masks].tolist()
+            nan_sample_ids.extend(_nan_ids)
+            print(f'Found IDs with NaN values: {_nan_ids}')
+
+        channel_avgs += _imgs[~_nan_masks].mean(2).sum(0)
+        channel_stds += _imgs[~_nan_masks].std(2).sum(0)
+        num_samples += (_num_samples - _nan_masks.sum())
+
+    channel_avgs /= num_samples
+    channel_stds /= num_samples
+
+    print(f'{num_samples}/{len(_trn_dset)}\n'
+          f'AVG: {channel_avgs.tolist()}\n'
+          f'STD: {channel_stds.tolist()}')
+
+    return channel_avgs, channel_stds, nan_sample_ids

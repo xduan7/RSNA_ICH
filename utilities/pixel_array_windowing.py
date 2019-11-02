@@ -35,17 +35,17 @@ from .constants import *
 # }
 
 WindowRanges = List[Tuple[int, int, bool]]  # last bit for inclusive
-DEFAULT_WINDOW_RANGES = [
-    (0, 80, True),  # Brain matter
-    (-20, 180, True),  # Blood/subdural
-    (-160, 240, True),  # Soft tissue
-    # [-800, 2000, True],  # Bone
-]
+# DEFAULT_WINDOW_RANGES = [
+#     (0, 80, True),  # Brain matter
+#     (-20, 180, True),  # Blood/subdural
+#     (-160, 240, True),  # Soft tissue
+#     # [-800, 2000, True],  # Bone
+# ]
 
-NON_OVERLAPPING_WINDOW_RANGES = [
-    [-80, 0, True],  # Brain matter
-    [0, 160, True],  # Blood/subduralå
-    [160, 320, True],  # Soft tissue
+DEFAULT_WINDOW_RANGES = [
+    [0, 100, False],  # Brain matter
+    [-100, 300, False],  # Blood/subduralå
+    [200, 800, True],  # Soft tissue
     # [-800, 2000, True],  # Bone
 ]
 
