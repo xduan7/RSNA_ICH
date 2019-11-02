@@ -104,6 +104,8 @@ for epoch in range(NUM_EPOCHS):
         inputs = batch["image"]
         labels = batch["labels"]
 
+        print(inputs.shape)
+
         inputs = inputs.to(DEVICE, dtype=torch.float)
         labels = labels.to(DEVICE, dtype=torch.float)
 
