@@ -132,8 +132,8 @@ def make_prediction(
             inputs = batch["image"]
             labels = batch["labels"]
 
-            inputs = inputs.to(DEVICE, dtype=torch.float)
-            labels = labels.to(DEVICE, dtype=torch.float)
+            inputs = inputs.to(device, dtype=torch.float)
+            labels = labels.to(device, dtype=torch.float)
 
             outputs = model(inputs)
             loss = criterion(outputs, labels)
