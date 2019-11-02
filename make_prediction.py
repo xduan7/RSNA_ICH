@@ -109,7 +109,8 @@ def make_prediction(
 
     model.fc = torch.nn.Linear(2048, len(DIAGNOSIS)).to(device)
 
-    criterion = torch.nn.BCEWithLogitsLoss(weight=[2, 1, 1, 1, 1, 1])
+    criterion = torch.nn.BCEWithLogitsLoss(
+        weight=torch.FloatTensor([2, 1, 1, 1, 1, 1]).to(device))
 
     optim = torch.optim.Adam(params=model.parameters(),
                              lr=2e-5)
