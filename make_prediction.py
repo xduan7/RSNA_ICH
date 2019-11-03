@@ -161,10 +161,10 @@ def make_prediction(
             for step, batch in enumerate(tst_iter):
 
                 inputs = batch['image']
-                ids.extend(batch['id'].tolist())
+                ids.extend(batch['id'])
 
                 inputs = inputs.to(device, dtype=torch.float)
-                labels = labels.to(device, dtype=torch.float)
+                # labels = labels.to(device, dtype=torch.float)
 
                 predictions.extend(model(inputs).tolist())
 
