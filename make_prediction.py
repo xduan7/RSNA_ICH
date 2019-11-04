@@ -172,7 +172,7 @@ def make_prediction(
 
             masked_pred_df = pred_df.copy(deep=True)
             masked_pred_df.loc[tst_outlier_mask] = \
-                [[0, 0, 0, 0, 0, 0]] * len(tst_outlier_mask)
+                [[0, 0, 0, 0, 0, 0]] * tst_outlier_mask.sum()
 
             tst_lbl_df_to_submission_csv(
                 pred_df,
