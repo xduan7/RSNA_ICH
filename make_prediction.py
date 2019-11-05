@@ -171,11 +171,15 @@ def make_prediction(
                 predictions.extend(torch.sigmoid(model(inputs)).tolist())
 
             pred_df = pd.DataFrame(predictions, columns=DIAGNOSIS, index=ids)
+            pred_df.index.name = 'ID'
 
             masked_pred_df = pred_df.copy(deep=True)
 
             masked_pred_df.loc[tst_outlier_mask] = \
                 [[0, 0, 0, 0, 0, 0]] * tst_outlier_mask.sum()
+
+            print(pred_df.head())
+            print(masked_pred_df.head())
 
             tst_lbl_df_to_submission_csv(
                 pred_df,
