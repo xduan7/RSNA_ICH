@@ -122,38 +122,40 @@ def make_prediction(
         print('Epoch {}/{}'.format(epoch, NUM_EPOCHS - 1))
         print('-' * 10)
 
-        model.train()
-        tr_loss = 0
-
-        trn_iter = tqdm(trn_dldr, desc="Iteration")
-
-        for step, batch in enumerate(trn_iter):
-
-            inputs = batch["image"]
-            labels = batch["labels"]
-
-            inputs = inputs.to(device, dtype=torch.float)
-            labels = labels.to(device, dtype=torch.float)
-
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-
-            loss.backward()
-
-            tr_loss += loss.item()
-
-            optim.step()
-            optim.zero_grad()
-
-            if epoch == 1 and step > 6000:
-                epoch_loss = tr_loss / 6000
-                print('Training Loss: {:.4f}'.format(epoch_loss))
-                break
-
-        epoch_loss = tr_loss / len(trn_dldr)
-        print('Training Loss: {:.4f}'.format(epoch_loss))
+        # model.train()
+        # tr_loss = 0
+        #
+        # trn_iter = tqdm(trn_dldr, desc="Iteration")
+        #
+        # for step, batch in enumerate(trn_iter):
+        #
+        #     inputs = batch["image"]
+        #     labels = batch["labels"]
+        #
+        #     inputs = inputs.to(device, dtype=torch.float)
+        #     labels = labels.to(device, dtype=torch.float)
+        #
+        #     outputs = model(inputs)
+        #     loss = criterion(outputs, labels)
+        #
+        #     loss.backward()
+        #
+        #     tr_loss += loss.item()
+        #
+        #     optim.step()
+        #     optim.zero_grad()
+        #
+        #     if epoch == 1 and step > 6000:
+        #         epoch_loss = tr_loss / 6000
+        #         print('Training Loss: {:.4f}'.format(epoch_loss))
+        #         break
+        #
+        # epoch_loss = tr_loss / len(trn_dldr)
+        # print('Training Loss: {:.4f}'.format(epoch_loss))
 
         with torch.no_grad():
+
+            model.eval()
 
             ids = []
             predictions = []
@@ -163,12 +165,21 @@ def make_prediction(
                 inputs = batch['image']
                 ids.extend(batch['id'])
 
+                print(ids)
+
                 inputs = inputs.to(device, dtype=torch.float)
                 # labels = labels.to(device, dtype=torch.float)
 
-                predictions.extend(model(inputs).tolist())
+                predictions.extend(torch.sigmoid(model(inputs)).tolist())
+
+                print(ids[: -8])
+                print(predictions[: -8])
+
+                break
 
             pred_df = pd.DataFrame(predictions, columns=DIAGNOSIS, index=ids)
+
+            print(pred_df)
 
             masked_pred_df = pred_df.copy(deep=True)
             masked_pred_df.loc[tst_outlier_mask] = \
@@ -176,10 +187,10 @@ def make_prediction(
 
             tst_lbl_df_to_submission_csv(
                 pred_df,
-                f'./e{equalization}n{normalization}_{epoch+1}.csv')
+                f'./e_{equalization}_n_{normalization}_{epoch+1}.csv')
             tst_lbl_df_to_submission_csv(
                 masked_pred_df,
-                f'./masked_e{equalization}n{normalization}_{epoch + 1}.csv')
+                f'./masked_e_{equalization}_n_{normalization}_{epoch+1}.csv')
 
 
 if __name__ == '__main__':
