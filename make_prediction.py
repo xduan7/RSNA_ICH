@@ -165,23 +165,15 @@ def make_prediction(
                 inputs = batch['image']
                 ids.extend(batch['id'])
 
-                print(ids)
-
                 inputs = inputs.to(device, dtype=torch.float)
                 # labels = labels.to(device, dtype=torch.float)
 
                 predictions.extend(torch.sigmoid(model(inputs)).tolist())
 
-                print(ids[: -8])
-                print(predictions[: -8])
-
-                break
-
             pred_df = pd.DataFrame(predictions, columns=DIAGNOSIS, index=ids)
 
-            print(pred_df)
-
             masked_pred_df = pred_df.copy(deep=True)
+
             masked_pred_df.loc[tst_outlier_mask] = \
                 [[0, 0, 0, 0, 0, 0]] * tst_outlier_mask.sum()
 
